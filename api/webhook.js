@@ -13,9 +13,11 @@ const WA_PHONE_ID    = process.env.WA_PHONE_NUMBER_ID;
 // For internal testing: add researcher numbers here.
 // After ethics approval: replace with database lookup (see DB_QUERY comment below).
 const CHW_REGISTRY = {
-  // Format: 'countrycode+number': { district, lang, pop, role, lat, lon }
-  // '256700000001': { district:'Kampala', lang:'Luganda', pop:'AGYW 15-24', role:'researcher', lat:0.3476, lon:32.5825 },
-  // '256700000002': { district:'Busia',   lang:'Lusamia', pop:'sex workers', role:'researcher', lat:0.4647, lon:34.0904 },
+  // ── INTERNAL TESTING (remove after ethics approval) ──
+  // Moses Okumu — US test number
+  '19198699082': { district:'Kampala', lang:'Luganda', pop:'AGYW 15-24', role:'researcher', lat:0.3476, lon:32.5825 },
+  // Add Uganda numbers below:
+  // '256XXXXXXXXX': { district:'Kampala', lang:'Luganda', pop:'AGYW 15-24', role:'researcher', lat:0.3476, lon:32.5825 },
 };
 
 // ─── DISTRICT GEOCODES + RESOURCES ───────────────────────────────────────────
@@ -241,7 +243,7 @@ async function callPreventa(message, chw) {
 
 // ─── SEND WHATSAPP MESSAGE ────────────────────────────────────────────────────
 async function sendWA(to, body) {
-  const resp = await fetch(`https://graph.facebook.com/v18.0/${WA_PHONE_ID}/messages`, {
+  const resp = await fetch(`https://graph.facebook.com/v21.0/${WA_PHONE_ID}/messages`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${WA_TOKEN}`,
@@ -323,7 +325,18 @@ export default async function handler(req, res) {
   res.end('OK');
 
   try {
-    const entry   = req.body?.entry?.[0];
+    // Parse body — handle both pre-parsed and raw stream (Vercel ESM)
+    let body = req.body;
+    if (!body) {
+      // Read raw stream
+      const chunks = [];
+      for await (const chunk of req) chunks.push(chunk);
+      const raw = Buffer.concat(chunks).toString('utf8');
+      try { body = JSON.parse(raw); } catch { body = {}; }
+    } else if (typeof body === 'string') {
+      try { body = JSON.parse(body); } catch { body = {}; }
+    }
+    const entry   = body?.entry?.[0];
     const change  = entry?.changes?.[0]?.value;
     const message = change?.messages?.[0];
 
