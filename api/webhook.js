@@ -283,21 +283,32 @@ export default async function handler(req, res) {
 
   // ── WEBHOOK VERIFICATION (Meta calls GET once) ──
   if (req.method === 'GET') {
-    const challenge    = req.query['hub.challenge'];
-    const verifyToken  = req.query['hub.verify_token'];
-    const mode         = req.query['hub.mode'];
+    const params = new URL(req.url, 'https://placeholder.com').searchParams;
+    const challenge    = params.get('hub.challenge') || req.query?.['hub.challenge'];
+    const verifyToken  = params.get('hub.verify_token') || req.query?.['hub.verify_token'];
+    const mode         = params.get('hub.mode') || req.query?.['hub.mode'];
     if (mode === 'subscribe' && verifyToken === VERIFY_TOKEN) {
-      console.log('Webhook verified');
-      return res.send(challenge);
+      console.log('PREVENTA webhook verified ✓');
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'text/plain');
+      res.end(challenge);
+      return;
     }
-    return res.status(403).send('Forbidden');
+    res.statusCode = 403;
+    res.end('Forbidden');
+    return;
   }
 
   // ── INCOMING MESSAGE (Meta calls POST) ──
-  if (req.method !== 'POST') return res.sendStatus(405);
+  if (req.method !== 'POST') {
+    res.statusCode = 405;
+    res.end('Method Not Allowed');
+    return;
+  }
 
   // Always return 200 to Meta immediately to prevent retries
-  res.sendStatus(200);
+  res.statusCode = 200;
+  res.end('OK');
 
   try {
     const entry   = req.body?.entry?.[0];
