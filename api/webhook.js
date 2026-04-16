@@ -281,19 +281,31 @@ function logInteraction(chw, domains, syndemicFlag, messageLength) {
 // ─── MAIN HANDLER ─────────────────────────────────────────────────────────────
 export default async function handler(req, res) {
 
+  // CORS headers — allow browser testing
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+
+  if (req.method === 'OPTIONS') { res.statusCode = 200; res.end(); return; }
+
   // ── WEBHOOK VERIFICATION (Meta calls GET once) ──
   if (req.method === 'GET') {
-    const params = new URL(req.url, 'https://placeholder.com').searchParams;
-    const challenge    = params.get('hub.challenge') || req.query?.['hub.challenge'];
-    const verifyToken  = params.get('hub.verify_token') || req.query?.['hub.verify_token'];
-    const mode         = params.get('hub.mode') || req.query?.['hub.mode'];
+    // Parse query params from raw URL (works in all Node contexts)
+    const rawUrl = req.url || '';
+    const qIdx = rawUrl.indexOf('?');
+    const qs = qIdx >= 0 ? rawUrl.slice(qIdx + 1) : '';
+    const params = new URLSearchParams(qs);
+    const challenge   = params.get('hub.challenge')    || req.query?.['hub.challenge']    || '';
+    const verifyToken = params.get('hub.verify_token') || req.query?.['hub.verify_token'] || '';
+    const mode        = params.get('hub.mode')         || req.query?.['hub.mode']         || '';
+    console.log('PREVENTA GET verify — mode:', mode, 'token matches:', verifyToken === VERIFY_TOKEN);
     if (mode === 'subscribe' && verifyToken === VERIFY_TOKEN) {
-      console.log('PREVENTA webhook verified ✓');
+      console.log('PREVENTA webhook verified ✓ challenge:', challenge);
       res.statusCode = 200;
       res.setHeader('Content-Type', 'text/plain');
-      res.end(challenge);
+      res.end(String(challenge));
       return;
     }
+    console.log('PREVENTA verify FAILED — token received:', verifyToken, 'expected:', VERIFY_TOKEN);
     res.statusCode = 403;
     res.end('Forbidden');
     return;
